@@ -1,0 +1,39 @@
+# WordPress to Crossref field mappings
+
+publication:
+  title: "title.rendered"
+  doi_code: "acf.pi_publication_code"
+  date_published: "date"
+  date_modified: "modified"
+  url: "link"
+  author_id: "author"
+  coauthor_ids: "coauthors"
+
+author:
+  display_name: "name"
+  # Name parsing rules for splitting into given/surname
+  name_parsing:
+    strategy: "smart_split"  # Options: smart_split, last_word_surname, manual
+    common_prefixes: ["Dr.", "Prof.", "M.D.", "Ph.D."]
+
+contributor_mapping:
+  first_author:
+    sequence: "first"
+    role: "author"
+  additional_authors:
+    sequence: "additional"
+    role: "author"
+
+# Future extensibility
+optional_metadata:
+  orcid:
+    enabled: false  # Enable when ORCID data available
+    source: "acf.author_orcid"
+
+  affiliations:
+    enabled: false  # Enable when affiliation data available
+    source: "acf.author_affiliation"
+
+  funding:
+    enabled: false
+    source: "acf.funding_info"

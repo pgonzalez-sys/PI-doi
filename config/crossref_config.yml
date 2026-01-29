@@ -1,0 +1,45 @@
+# Crossref depositor information
+depositor:
+  name: "Psychopharmacology Institute"
+  email: "doi@psychopharmacologyinstitute.com"
+  registrant: "Psychopharmacology Institute"
+
+# DOI configuration
+doi:
+  prefix: "10.64239"
+  pattern: "pi-{publication_code}"
+  fallback_pattern: "pi-wp-{wordpress_id}"
+
+# Organization metadata
+organization:
+  name: "Psychopharmacology Institute"
+  base_url: "https://psychopharmacologyinstitute.com"
+
+# Publisher information (for reports)
+publisher:
+  name: "Psychopharmacology Institute"
+  place: "United States"
+
+# Schema version
+crossref:
+  schema_version: "5.4.0"
+  schema_url: "https://www.crossref.org/schemas/crossref5.4.0.xsd"
+  content_type: "report"
+
+# WordPress API settings
+wordpress:
+  api_version: "wp/v2"
+  pagination:
+    per_page: 100
+    max_pages: null  # null = fetch all
+  retry:
+    max_attempts: 3
+    backoff_factor: 2  # seconds
+
+# Output settings
+output:
+  batch_dir: "output/batches"
+  individual_dir: "output/individual"
+  validate: true  # XSD validation before saving
+  pretty_print: true
+  encoding: "UTF-8"

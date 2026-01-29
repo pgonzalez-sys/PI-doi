@@ -1,0 +1,600 @@
+openapi: 3.0.3
+
+info:
+  title: WordPress / LearnDash Publications & Sections API
+  version: 1.0.0
+  description: |
+    This specification documents how to retrieve editorial metadata
+    for Publications (LearnDash Courses) and Sections (LearnDash Lessons)
+    from the Psychopharmacology Institute WordPress site.
+
+servers:
+  - url: https://psychopharmacologyinstitute.com
+
+security:
+  - basicAuth: []
+
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+      description: |
+        Authentication uses HTTP Basic Auth with a WordPress Application Password.
+
+        Generating an Application Password:
+        ----------------------------------
+        1. Log in to WordPress Admin
+           (/wp-admin/profile.php)
+
+        2. Scroll to the **Application Passwords** section.
+
+        3. Enter a name (for example: `External API Access`).
+
+        4. Click **Add New Application Password**.
+
+        5. Copy the generated password.
+           The password is shown only once.
+
+        6. Store the password securely.
+           If the password is lost, a new one must be generated.
+
+        Usage:
+        ------
+        • Username: WordPress username
+        • Password: Application Password (not the login password)
+
+        Example:
+        --------
+        curl -X GET \
+          https://psychopharmacologyinstitute.com/wp-json/wp/v2/sfwd-courses \
+          -u your_username:your_application_password
+
+  schemas:
+
+    RenderedTitle:
+      type: object
+      description: |
+        Standard WordPress title object.
+        The `rendered` field contains the public-facing title.
+      properties:
+        rendered:
+          type: string
+          example: "Antidepressant Withdrawal Effects and Safe Deprescribing"
+
+    Publication:
+      type: object
+      description: |
+        LearnDash Course representing a Publication.
+      properties:
+        id:
+          type: integer
+          description: |
+            Internal WordPress post ID for the publication.
+          example: 1201848
+
+        date:
+          type: string
+          format: date-time
+          description: |
+            Original publication date.
+          example: "2025-09-01T00:00:00"
+
+        link:
+          type: string
+          format: uri
+          description: |
+            Canonical public URL for the publication.
+          example: "https://psychopharmacologyinstitute.com/publication/antidepressant-withdrawal-effects/"
+
+        title:
+          $ref: '#/components/schemas/RenderedTitle'
+
+        author:
+          type: integer
+          nullable: true
+          description: |
+            Primary author identifier.
+
+            This field returns only the WordPress user ID.
+            Author details can be retrieved using:
+
+              GET /wp-json/wp/v2/users/{author_id}
+          example: 160527
+
+        coauthors:
+          type: array
+          description: |
+            List of co-author identifiers.
+
+            These values are IDs managed by the Co-Authors Plus plugin.
+            Co-author details can be retrieved using:
+
+              GET /wp-json/wp/v2/coauthors/{id}
+          items:
+            type: integer
+          example: [4586]
+
+        acf:
+          type: object
+          description: |
+            Editorial metadata stored using Advanced Custom Fields (ACF).
+          properties:
+            pi_publication_code:
+              type: string
+              description: |
+                Internal editorial code for the publication.
+              example: "98"
+
+    Section:
+      type: object
+      description: |
+        LearnDash Lesson representing a Section.
+      properties:
+        id:
+          type: integer
+          description: |
+            Internal WordPress post ID for the section.
+          example: 1625317
+
+        date:
+          type: string
+          format: date-time
+          description: |
+            Original publication date.
+          example: "2025-08-31T01:42:34"
+
+        link:
+          type: string
+          format: uri
+          description: |
+            Canonical public URL for the section.
+          example: "https://psychopharmacologyinstitute.com/section/current-trends-in-antidepressant-use/"
+
+        title:
+          $ref: '#/components/schemas/RenderedTitle'
+
+        author:
+          type: integer
+          description: |
+            Author identifier for the section.
+
+            This field returns only a WordPress user ID.
+            Author details can be retrieved using:
+
+              GET /wp-json/wp/v2/users/{author_id}
+
+            Most sections do not have an author assigned
+            and may return 0.
+          example: 0
+
+        coauthors:
+          type: array
+          description: |
+            List of co-author identifiers for the section.
+
+            Each value can be resolved using:
+
+              GET /wp-json/wp/v2/coauthors/{id}
+          items:
+            type: integer
+          example: []
+
+        acf:
+          type: object
+          description: |
+            Section-specific editorial metadata.
+          properties:
+            pi_section_code:
+              type: string
+              description: |
+                Internal editorial code for the section.
+              example: "QT5201"
+
+    CourseSteps:
+      type: object
+      description: |
+        LearnDash course structure response.
+
+        This endpoint defines the relationship between
+        a Publication and its Sections.
+      properties:
+        sfwd-lessons:
+          type: array
+          description: |
+            List of Section (Lesson) IDs belonging to the publication.
+
+            This endpoint returns only IDs.
+            Section metadata can be retrieved using:
+
+              GET /wp-json/wp/v2/sfwd-lessons/{lesson_id}
+          items:
+            type: integer
+          example: [1625317, 1625318, 1625319]
+
+        sfwd-topic:
+          type: array
+          description: |
+            Topic identifiers (not required for editorial metadata).
+          items:
+            type: integer
+
+        sfwd-quiz:
+          type: array
+          description: |
+            Quiz identifiers (not required for editorial metadata).
+          items:
+            type: integer
+
+    Author:
+      type: object
+      description: |
+        WordPress user object representing an author.
+      properties:
+        id:
+          type: integer
+          description: WordPress user ID.
+          example: 160527
+        name:
+          type: string
+          description: Display name of the author.
+          example: "Deylinder Sequera"
+        slug:
+          type: string
+        link:
+          type: string
+          description: Public author archive URL.
+
+    CoAuthor:
+      type: object
+      description: |
+        Co-author object provided by the Co-Authors Plus plugin.
+      properties:
+        id:
+          type: integer
+          description: Co-author identifier.
+          example: 4586
+        name:
+          type: string
+          description: Co-author display name.
+          example: "mark-horowitz"
+        slug:
+          type: string
+        description:
+          type: string
+        link:
+          type: string
+
+    Faculty:
+      type: object
+      description: |
+        Guest Author / Faculty profile used for expert attribution
+        across Publications and Sections.
+
+        Faculty entries are managed separately from WordPress users
+        and are typically referenced via Co-Authors Plus or editorial metadata.
+      properties:
+        id:
+          type: integer
+          description: |
+            Internal WordPress post ID for the faculty profile.
+          example: 1662223
+
+        meta:
+          type: object
+          description: |
+            Core profile metadata managed by Co-Authors Plus.
+          properties:
+            cap-display_name:
+              type: string
+              description: |
+                Public display name of the faculty member.
+              example: "Simone Vigod"
+
+            cap-first_name:
+              type: string
+              example: "Simone"
+
+            cap-last_name:
+              type: string
+              example: "Vigod"
+
+            cap-description:
+              type: string
+              description: |
+                Short biographical description.
+              example: ""
+
+        acf:
+          type: object
+          description: |
+            Extended editorial metadata stored using ACF.
+          properties:
+            wpseo_user_schema:
+              type: object
+              description: |
+                Structured data used for SEO and schema markup.
+              properties:
+                honorificPrefix:
+                  type: string
+                  example: ""
+                honorificSuffix:
+                  type: string
+                  example: "M.D."
+                jobTitle:
+                  type: string
+                  example: ""
+                worksFor:
+                  type: string
+                  example: "American Psychiatric Association"
+
+
+paths:
+
+  /wp-json/wp/v2/sfwd-courses:
+    get:
+      summary: Get all Publications
+      description: |
+        Returns a paginated list of Publications.
+      parameters:
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            maximum: 100
+            default: 10
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: _fields
+          in: query
+          schema:
+            type: string
+          example: id,title,date,link,author,coauthors,acf.pi_publication_code
+          description: |
+            Preset field selection for editorial metadata.
+      responses:
+        '200':
+          description: List of Publications
+          headers:
+            X-WP-Total:
+              description: Total number of publications.
+              schema:
+                type: integer
+            X-WP-TotalPages:
+              description: Total number of pages available.
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Publication'
+
+  /wp-json/wp/v2/sfwd-lessons:
+    get:
+      summary: Get all Sections
+      description: |
+        Returns a paginated list of Sections.
+      parameters:
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            maximum: 100
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: _fields
+          in: query
+          schema:
+            type: string
+          example: id,title,date,link,author,coauthors,acf.pi_section_code
+          description: |
+            Preset field selection for editorial metadata.
+      responses:
+        '200':
+          description: List of Sections
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Section'
+
+  /wp-json/ldlms/v2/sfwd-courses/{course_id}/steps:
+    get:
+      summary: Get Section IDs for a Publication
+      description: |
+        Returns the list of Section identifiers associated
+        with a Publication.
+      parameters:
+        - name: course_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Publication structure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseSteps'
+
+  /wp-json/wp/v2/sfwd-lessons/{lesson_id}:
+    get:
+      summary: Get a single Section
+      description: |
+        Returns editorial metadata for a single Section.
+
+        Most sections do not have an author explicitly assigned.
+        As a result, the `author` and `coauthors` fields may be empty
+        or return `0`.
+      parameters:
+        - name: lesson_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: _fields
+          in: query
+          schema:
+            type: string
+          example: id,title,date,link,author,coauthors,acf.pi_section_code
+          description: |
+            Preset field selection for editorial metadata.
+      responses:
+        '200':
+          description: Section metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Section'
+
+  /wp-json/wp/v2/sfwd-courses/{publication_id}:
+    get:
+      summary: Get a single Publication
+      parameters:
+        - name: publication_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: _fields
+          in: query
+          schema:
+            type: string
+          example: id,title,date,link,author,coauthors,acf.pi_publication_code
+          description: |
+            Preset field selection for editorial metadata.
+      responses:
+        '200':
+          description: Publication metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Publication'
+
+  /wp-json/wp/v2/users/{id}:
+    get:
+      summary: Get Author details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Author details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Author'
+
+  /wp-json/wp/v2/coauthors/{id}:
+    get:
+      summary: Get Co-Author details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Co-Author details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CoAuthor'
+
+  /wp-json/wp/v2/guest-author:
+      get:
+        summary: Get all Faculty
+        description: |
+          Returns a paginated list of Faculty (Guest Author) profiles.
+
+          Faculty profiles are used to represent expert contributors
+          and may be linked to Publications and Sections.
+        parameters:
+          - name: per_page
+            in: query
+            schema:
+              type: integer
+              maximum: 100
+              default: 10
+            description: |
+              Number of faculty records to return per page.
+
+          - name: page
+            in: query
+            schema:
+              type: integer
+              default: 1
+            description: |
+              Page number of the results to retrieve.
+
+          - name: _fields
+            in: query
+            schema:
+              type: string
+            example: id,meta,acf
+            description: |
+              Preset field selection for faculty editorial metadata.
+        responses:
+          '200':
+            description: List of Faculty profiles
+            headers:
+              X-WP-Total:
+                description: Total number of faculty records.
+                schema:
+                  type: integer
+              X-WP-TotalPages:
+                description: Total number of pages available.
+                schema:
+                  type: integer
+            content:
+              application/json:
+                schema:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Faculty'
+
+  /wp-json/wp/v2/guest-author/{faculty_id}:
+      get:
+        summary: Get a single Faculty profile
+        description: |
+          Returns editorial metadata for a single Faculty member.
+
+          This endpoint is typically used to resolve faculty details
+          when only the Faculty ID is available.
+        parameters:
+          - name: faculty_id
+            in: path
+            required: true
+            schema:
+              type: integer
+            description: |
+              Faculty (Guest Author) ID.
+
+          - name: _fields
+            in: query
+            schema:
+              type: string
+            example: id,meta,acf
+            description: |
+              Preset field selection for faculty editorial metadata.
+        responses:
+          '200':
+            description: Faculty profile
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/Faculty'
+
