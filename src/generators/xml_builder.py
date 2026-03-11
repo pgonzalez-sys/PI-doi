@@ -111,6 +111,10 @@ class CrossrefXMLBuilder:
         titles = etree.SubElement(report_metadata, "titles")
         etree.SubElement(titles, "title").text = metadata.title
 
+        # Abstract (JATS format) - must come after titles, before publication_date
+        if metadata.abstract:
+            report_metadata.append(self._build_abstract(metadata.abstract))
+
         # Publication date
         report_metadata.append(self._build_date(metadata.publication_date, "publication_date", media_type="online"))
 
@@ -129,10 +133,6 @@ class CrossrefXMLBuilder:
         # Relations (for sections that have a parent)
         if metadata.is_section and metadata.parent_doi:
             report_metadata.append(self._build_relations(metadata.parent_doi))
-
-        # Abstract (JATS format)
-        if metadata.abstract:
-            report_metadata.append(self._build_abstract(metadata.abstract))
 
         # DOI data
         report_metadata.append(self._build_doi_data(metadata.doi, metadata.resource_url))
@@ -211,13 +211,13 @@ class CrossrefXMLBuilder:
 
         related_item = etree.SubElement(program, "{http://www.crossref.org/relations.xsd}related_item")
 
-        intra_work_relation = etree.SubElement(
+        inter_work_relation = etree.SubElement(
             related_item,
-            "{http://www.crossref.org/relations.xsd}intra_work_relation"
+            "{http://www.crossref.org/relations.xsd}inter_work_relation"
         )
-        intra_work_relation.set("relationship-type", "isPartOf")
-        intra_work_relation.set("identifier-type", "doi")
-        intra_work_relation.text = parent_doi
+        inter_work_relation.set("relationship-type", "isPartOf")
+        inter_work_relation.set("identifier-type", "doi")
+        inter_work_relation.text = parent_doi
 
         return program
 

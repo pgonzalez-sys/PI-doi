@@ -7,8 +7,8 @@ depositor:
 # DOI configuration
 doi:
   prefix: "10.64239"
-  pattern: "pi-{publication_code}"
-  fallback_pattern: "pi-wp-{wordpress_id}"
+  pattern: "PI-{publication_code}"
+  fallback_pattern: "PI-WP-{wordpress_id}"
 
 # Organization metadata
 organization:
