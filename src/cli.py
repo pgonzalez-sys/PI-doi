@@ -232,9 +232,16 @@ def _write_doi_report(publications: List, metadata_list: List, output_path: Path
                     len(pub.sections)
                 ])
 
-                # Write sections - get all section metadata for this parent
+                # Write sections - match metadata to original section objects for WordPress IDs
                 section_metadatas = [m for m in metadata_list if m.is_section and m.parent_doi == pub_metadata.doi]
                 for section_metadata in section_metadatas:
+                    # Find the original section object by matching URL
+                    section_wp_id = ''
+                    for section in pub.sections:
+                        if section.link == section_metadata.resource_url:
+                            section_wp_id = section.id
+                            break
+
                     writer.writerow([
                         'Section',
                         section_metadata.doi,
@@ -242,7 +249,7 @@ def _write_doi_report(publications: List, metadata_list: List, output_path: Path
                         section_metadata.report_number,
                         section_metadata.resource_url,
                         pub_metadata.doi,
-                        '',  # WordPress ID not needed for sections in report
+                        section_wp_id,
                         ''
                     ])
 

@@ -70,6 +70,32 @@ Update this list after each successful Crossref submission.
 
 **Total DOIs in Batch 1:** 12 (2 publications + 10 sections)
 
+### Batch 2 - Submitted 2026-03-27
+| Type | Code Range | Count | Sections |
+|------|------------|-------|----------|
+| Video Lectures | `VL000` - `VL101` (excluding VL102) | 101 | 994 |
+| Expert Consultations | `EC001` - `EC086` (excluding EC088) | 81 | 0 |
+| Quick Takes | `QT01` - `QT85` | 85 | 425 |
+| Brain Guides | `BG001` - `BG021` | 21 | 105 |
+| Special Brain Guides | `SBG2024`, `SBG2025` | 2 | 0 |
+| CAPSmart Takes | `CAPST01` - `CAPST20` | 20 | 26 |
+
+**Total DOIs in Batch 2:** 1,860 (310 publications + 1,550 sections)
+
+#### Last Submitted Codes (Start from here for next batch)
+| Type | Last Code | Notes |
+|------|-----------|-------|
+| Video Lectures | `VL101` | VL102 was in Batch 1 |
+| Expert Consultations | `EC086` | EC088 was in Batch 1; EC082, EC087 not found |
+| Quick Takes | `QT85` | |
+| Brain Guides | `BG021` | |
+| Special Brain Guides | `SBG2025` | |
+| CAPSmart Takes | `CAPST20` | |
+
+#### Missing/Gap Codes (not in WordPress)
+- **EC**: EC004, EC009, EC011, EC067, EC082, EC087
+- **VL**: VL11, VL19, VL28, VL33, VL55, VL64, VL88, VL99
+
 ---
 
 ## WordPress Configuration
@@ -118,14 +144,11 @@ Contact administrator for access.
 ## Step-by-Step Process for New DOI Batch
 
 ### 1. Verify Exclusions
-Check that `src/fetchers/publications.py` has the correct `EXCLUDED_CODES`:
-```python
-EXCLUDED_CODES = {
-    'EC088',  # Managing Catatonia - submitted 2026-03-11
-    '102',    # VL102 - Addiction Psychopharmacology - submitted 2026-03-11
-    # Add new submissions here
-}
-```
+Check that `src/fetchers/publications.py` has the correct `EXCLUDED_CODES`.
+
+**Note:** All publications through 2026-03-27 have been submitted. The EXCLUDED_CODES set
+contains all 312 submitted publication codes. For new publications, simply run the CLI -
+it will automatically exclude already-submitted codes and only process new ones.
 
 ### 2. Test with One Publication
 ```bash
@@ -197,17 +220,25 @@ code = code.upper().replace('-', '')
 |--------|-------|
 | Total publications in WordPress | 506 |
 | Valid for DOI | 312 |
-| Already submitted | 2 |
-| Remaining to process | 310 |
+| Already submitted (Batch 1 + 2) | 312 |
+| Remaining to process | 0 |
 | Excluded (NL, OA, OPC, SA) | 194 |
 
-### Breakdown by Type
+### DOIs Registered
+| Batch | Publications | Sections | Total DOIs |
+|-------|--------------|----------|------------|
+| Batch 1 (2026-03-11) | 2 | 10 | 12 |
+| Batch 2 (2026-03-27) | 310 | 1,550 | 1,860 |
+| **Total** | **312** | **1,560** | **1,872** |
+
+### Breakdown by Type (All Submitted)
 | Type | Count |
 |------|-------|
 | Video Lectures | 102 |
 | Expert Consultations | 82 |
 | Quick Takes | 85 |
-| Brain Guides (BG + SBG) | 23 |
+| Brain Guides (BG) | 21 |
+| Special Brain Guides (SBG) | 2 |
 | CAPSmart Takes | 20 |
 
 ---

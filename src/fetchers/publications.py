@@ -16,9 +16,52 @@ class PublicationFetcher:
 
     # Publication codes that have already been submitted to Crossref
     # These will be excluded from new batches
+    # Last updated: 2026-03-27 (Batch 1 + Batch 2 = 312 publications)
     EXCLUDED_CODES = {
-        'EC088',  # Managing Catatonia - submitted 2026-03-11
-        '102',    # VL102 - Addiction Psychopharmacology - submitted 2026-03-11
+        # Video Lectures (numeric codes) - Batch 1 & 2
+        '000', '001', '01', '02', '002', '003', '03', '004', '04', '005',
+        '05', '06', '006', '07', '007', '08', '09', '10', '12', '13',
+        '14', '15', '16', '17', '18', '20', '21', '22', '23', '24',
+        '25', '26', '27', '29', '30', '31', '32', '34', '35', '36',
+        '37', '38', '39', '40', '41', '42', '43', '44', '45', '46',
+        '47', '48', '49', '50', '51', '52', '53', '54', '56', '57',
+        '58', '59', '60', '61', '62', '63', '65', '66', '67', '68',
+        '69', '70', '71', '72', '73', '74', '75', '76', '77', '78',
+        '79', '80', '81', '82', '83', '84', '85', '86', '87', '89',
+        '90', '91', '92', '93', '94', '95', '96', '97', '98', '100',
+        '101', '102',
+        # Expert Consultations - Batch 1 & 2
+        'EC001', 'EC002', 'EC003', 'EC005', 'EC006', 'EC007', 'EC008', 'EC010',
+        'EC012', 'EC013', 'EC014', 'EC015', 'EC016', 'EC017', 'EC018', 'EC019',
+        'EC020', 'EC021', 'EC022', 'EC023', 'EC024', 'EC025', 'EC026', 'EC027',
+        'EC028', 'EC029', 'EC030', 'EC031', 'EC032', 'EC033', 'EC034', 'EC035',
+        'EC036', 'EC037', 'EC038', 'EC039', 'EC040', 'EC041', 'EC042', 'EC043',
+        'EC044', 'EC045', 'EC046', 'EC047', 'EC048', 'EC049', 'EC050', 'EC051',
+        'EC052', 'EC053', 'EC054', 'EC055', 'EC056', 'EC057', 'EC058', 'EC059',
+        'EC060', 'EC061', 'EC062', 'EC063', 'EC064', 'EC065', 'EC066', 'EC068',
+        'EC069', 'EC070', 'EC071', 'EC072', 'EC073', 'EC074', 'EC075', 'EC076',
+        'EC077', 'EC078', 'EC079', 'EC080', 'EC081', 'EC083', 'EC084', 'EC085',
+        'EC086', 'EC088',
+        # Quick Takes - Batch 2
+        'QT01', 'QT02', 'QT03', 'QT04', 'QT05', 'QT06', 'QT07', 'QT08', 'QT09', 'QT10',
+        'QT11', 'QT12', 'QT13', 'QT14', 'QT15', 'QT16', 'QT17', 'QT18', 'QT19', 'QT20',
+        'QT21', 'QT22', 'QT23', 'QT24', 'QT25', 'QT26', 'QT27', 'QT28', 'QT29', 'QT30',
+        'QT31', 'QT32', 'QT33', 'QT34', 'QT35', 'QT36', 'QT37', 'QT38', 'QT39', 'QT40',
+        'QT41', 'QT42', 'QT43', 'QT44', 'QT45', 'QT46', 'QT47', 'QT48', 'QT49', 'QT50',
+        'QT51', 'QT52', 'QT53', 'QT54', 'QT55', 'QT56', 'QT57', 'QT58', 'QT59', 'QT60',
+        'QT61', 'QT62', 'QT63', 'QT64', 'QT65', 'QT66', 'QT67', 'QT68', 'QT69', 'QT70',
+        'QT71', 'QT72', 'QT73', 'QT74', 'QT75', 'QT76', 'QT77', 'QT78', 'QT79', 'QT80',
+        'QT81', 'QT82', 'QT83', 'QT84', 'QT85',
+        # Brain Guides - Batch 2
+        'BG001', 'BG002', 'BG003', 'BG004', 'BG005', 'BG006', 'BG007', 'BG008',
+        'BG009', 'BG010', 'BG011', 'BG012', 'BG013', 'BG014', 'BG015', 'BG016',
+        'BG017', 'BG018', 'BG019', 'BG020', 'BG021',
+        # Special Brain Guides - Batch 2
+        'SBG2024', 'SBG2025',
+        # CAPSmart Takes - Batch 2
+        'CAPST01', 'CAPST02', 'CAPST03', 'CAPST04', 'CAPST05', 'CAPST06', 'CAPST07',
+        'CAPST08', 'CAPST09', 'CAPST10', 'CAPST11', 'CAPST12', 'CAPST13', 'CAPST14',
+        'CAPST15', 'CAPST16', 'CAPST17', 'CAPST18', 'CAPST19', 'CAPST20',
     }
 
     # Valid code prefixes for DOI generation
