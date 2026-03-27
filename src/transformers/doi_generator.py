@@ -10,7 +10,15 @@ logger = logging.getLogger(__name__)
 
 
 class DOIGenerator:
-    """Generates DOIs with configurable patterns."""
+    """Generates DOIs with configurable patterns.
+
+    DOI Format (UPPERCASE):
+    - Publications: 10.64239/PI-{CODE} (e.g., PI-EC088, PI-VL102)
+    - Sections: 10.64239/PI-{CODE}{NN} (e.g., PI-VL10201, PI-VL10202)
+
+    Video Lectures have numeric-only codes in WordPress and need VL prefix added.
+    Other products (EC, BG, OA, NL, QT, CAP, etc.) already have their prefix.
+    """
 
     def __init__(self, config: dict):
         self.prefix = config['doi']['prefix']
@@ -25,7 +33,7 @@ class DOIGenerator:
             parent_code: Parent publication code (for sections)
 
         Returns:
-            DOI string (e.g., "10.64239/pi-opc-031" or "10.64239/pi-opc-031-s01")
+            DOI string (e.g., "10.64239/PI-EC088" or "10.64239/PI-VL10201")
         """
         # Handle Section
         if isinstance(item, Section):
@@ -33,8 +41,8 @@ class DOIGenerator:
 
         # Handle Publication
         if item.publication_code:
-            code = self._sanitize_code(item.publication_code)
-            doi = f"{self.prefix}/{self.pattern.replace('{publication_code}', code)}"
+            code = self._normalize_code(item.publication_code)
+            doi = f"{self.prefix}/PI-{code}"
             logger.debug(f"Generated DOI: {doi} from code: {item.publication_code}")
             return doi
         elif self.fallback_pattern:
@@ -47,51 +55,55 @@ class DOIGenerator:
     def _generate_section_doi(self, section: Section, parent_code: str) -> str:
         """Generate DOI for a section.
 
+        Section DOIs append the section number directly to the parent code.
+        Example: Parent VL102, Section 1 -> PI-VL10201
+
         Args:
             section: Section object
             parent_code: Parent publication code
 
         Returns:
-            DOI string (e.g., "10.64239/pi-opc-031-s01")
+            DOI string (e.g., "10.64239/PI-VL10201")
         """
         if not parent_code:
             raise ValueError(f"Cannot generate section DOI without parent code for section {section.id}")
 
-        sanitized_parent = self._sanitize_code(parent_code)
-        section_suffix = f"s{section.section_number:02d}"  # s01, s02, etc.
+        normalized_parent = self._normalize_code(parent_code)
+        section_suffix = f"{section.section_number:02d}"  # 01, 02, etc.
 
-        doi = f"{self.prefix}/pi-{sanitized_parent}-{section_suffix}"
+        # Append section number directly (e.g., VL102 + 01 = VL10201)
+        doi = f"{self.prefix}/PI-{normalized_parent}{section_suffix}"
         logger.debug(f"Generated section DOI: {doi} for section {section.id}")
         return doi
 
-    def _sanitize_code(self, code: str) -> str:
-        """Ensure DOI suffix is valid.
+    def _normalize_code(self, code: str) -> str:
+        """Normalize publication code for DOI.
+
+        - Adds VL prefix to numeric-only codes (Video Lectures)
+        - Converts to UPPERCASE
+        - Removes hyphens for consistency
 
         Args:
-            code: Raw publication code
+            code: Raw publication code from WordPress
 
         Returns:
-            Sanitized code suitable for DOI
+            Normalized code suitable for DOI (e.g., "EC088", "VL102")
         """
         # Remove leading/trailing whitespace
         code = code.strip()
 
-        # Convert to lowercase
-        code = code.lower()
+        # Remove hyphens (OPC-031 -> OPC031)
+        code = code.replace('-', '')
 
-        # Replace spaces and underscores with hyphens
-        code = re.sub(r'[\s_]+', '-', code)
+        # Convert to uppercase
+        code = code.upper()
 
-        # Remove any characters that aren't alphanumeric or hyphens
-        code = re.sub(r'[^a-z0-9\-]', '', code)
-
-        # Remove consecutive hyphens
-        code = re.sub(r'-+', '-', code)
-
-        # Remove leading/trailing hyphens
-        code = code.strip('-')
+        # Check if code is numeric-only (Video Lecture)
+        if code.isdigit():
+            code = f"VL{code}"
+            logger.debug(f"Added VL prefix for Video Lecture: {code}")
 
         if not code:
-            raise ValueError("Publication code resulted in empty string after sanitization")
+            raise ValueError("Publication code resulted in empty string after normalization")
 
         return code

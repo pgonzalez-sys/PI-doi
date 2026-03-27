@@ -56,6 +56,9 @@ class CrossrefTransformer:
         # Parse publication date
         pub_date = self._parse_date(publication.publication_date)
 
+        # Normalize report number to match DOI format (e.g., EC088, VL102)
+        report_number = self.doi_gen._normalize_code(publication.publication_code) if publication.publication_code else str(publication.id)
+
         # Create metadata
         return CrossrefMetadata(
             doi=doi,
@@ -65,7 +68,7 @@ class CrossrefTransformer:
             resource_url=publication.link,
             publisher_name=self.config['publisher']['name'],
             publisher_place=self.config['publisher']['place'],
-            report_number=publication.publication_code or str(publication.id),
+            report_number=report_number,
             content_type='report',
             abstract=publication.abstract
         )
@@ -91,8 +94,9 @@ class CrossrefTransformer:
         # Parse publication date
         pub_date = self._parse_date(section.publication_date)
 
-        # Use section code or generate from parent + number
-        report_number = section.section_code or f"{parent_code}-{section.section_number:02d}"
+        # Generate report number to match DOI format (e.g., VL10201, VL10202)
+        normalized_parent = self.doi_gen._normalize_code(parent_code)
+        report_number = f"{normalized_parent}{section.section_number:02d}"
 
         return CrossrefMetadata(
             doi=doi,

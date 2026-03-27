@@ -14,30 +14,98 @@ logger = logging.getLogger(__name__)
 class PublicationFetcher:
     """Fetches publications with author details from WordPress."""
 
+    # Publication codes that have already been submitted to Crossref
+    # These will be excluded from new batches
+    EXCLUDED_CODES = {
+        'EC088',  # Managing Catatonia - submitted 2026-03-11
+        '102',    # VL102 - Addiction Psychopharmacology - submitted 2026-03-11
+    }
+
+    # Valid code prefixes for DOI generation
+    # Only publications with these codes will get DOIs
+    VALID_PREFIXES = (
+        'EC',     # Expert Consultations
+        'QT',     # Quick Takes
+        'BG',     # Brain Guides
+        'SBG',    # Special Brain Guides
+        'CAP',    # CAPSmart Takes (includes CAPS, CAPST)
+    )
+
     def __init__(self, client: WordPressClient):
         self.client = client
 
-    def fetch_all(self, limit: Optional[int] = None) -> List[Publication]:
+    def _is_valid_for_doi(self, code: str) -> bool:
+        """Check if a publication code should get a DOI.
+
+        Valid codes:
+        - Numeric only (Video Lectures): 102, 57, 000, 08, etc.
+        - EC (Expert Consultations): EC088, EC054, etc.
+        - QT (Quick Takes): QT52, etc.
+        - BG/SBG (Brain Guides): BG800, SBG2025, etc.
+        - CAP/CAPS/CAPST (CAPSmart Takes)
+
+        Invalid codes (excluded):
+        - NL (Newsletter)
+        - OPC (Open Podcast)
+        - OA (Open Access)
+        - Any other prefixes
+        """
+        if not code:
+            return False
+
+        code = code.strip().upper()
+
+        # Numeric-only codes are Video Lectures
+        if code.isdigit():
+            return True
+
+        # Check for valid prefixes
+        return code.startswith(self.VALID_PREFIXES)
+
+    def fetch_all(self, limit: Optional[int] = None, exclude_submitted: bool = True) -> List[Publication]:
         """Fetch all publications with author details.
 
         Args:
             limit: Optional limit on number of publications to fetch
+            exclude_submitted: If True, exclude already submitted DOIs (default: True)
         """
-        logger.info("Fetching publications...")
+        logger.info("Fetching published publications...")
 
         raw_pubs = self.client.get_paginated(
             'wp/v2/sfwd-courses',
             params={
                 '_fields': 'id,title,date,modified,link,author,coauthors,acf',
+                'status': 'publish',  # Only fetch published, not drafts
                 'per_page': min(limit, 100) if limit else 100
             }
         )
+
+        # Filter to only include valid publication types for DOI
+        original_count = len(raw_pubs)
+        raw_pubs = [
+            p for p in raw_pubs
+            if self._is_valid_for_doi(p.get('acf', {}).get('pi_publication_code', ''))
+        ]
+        filtered_count = original_count - len(raw_pubs)
+        if filtered_count > 0:
+            logger.info(f"Filtered out {filtered_count} publications (NL, OPC, OA, etc. - no DOI needed)")
+
+        # Filter out already submitted publications
+        if exclude_submitted:
+            before_exclusion = len(raw_pubs)
+            raw_pubs = [
+                p for p in raw_pubs
+                if p.get('acf', {}).get('pi_publication_code', '') not in self.EXCLUDED_CODES
+            ]
+            excluded_count = before_exclusion - len(raw_pubs)
+            if excluded_count > 0:
+                logger.info(f"Excluded {excluded_count} already submitted publications")
 
         # Apply limit if specified
         if limit:
             raw_pubs = raw_pubs[:limit]
 
-        logger.info(f"Found {len(raw_pubs)} publications")
+        logger.info(f"Found {len(raw_pubs)} publications to process")
 
         publications = []
         for raw_pub in raw_pubs:

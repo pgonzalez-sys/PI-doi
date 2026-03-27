@@ -193,6 +193,13 @@ def _write_doi_report(publications: List, metadata_list: List, output_path: Path
         output_path: Path to output CSV file
     """
     import csv
+    from .transformers.doi_generator import DOIGenerator
+    import yaml
+
+    # Load config for DOI generator
+    with open('config/crossref_config.yml') as f:
+        config = yaml.safe_load(f)
+    doi_gen = DOIGenerator(config)
 
     with open(output_path, 'w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
@@ -208,8 +215,9 @@ def _write_doi_report(publications: List, metadata_list: List, output_path: Path
         ])
 
         for pub in publications:
-            # Find publication metadata
-            pub_metadata = next((m for m in metadata_list if not m.is_section and m.report_number == pub.publication_code), None)
+            # Find publication metadata by matching normalized report number
+            normalized_code = doi_gen._normalize_code(pub.publication_code) if pub.publication_code else str(pub.id)
+            pub_metadata = next((m for m in metadata_list if not m.is_section and m.report_number == normalized_code), None)
 
             if pub_metadata:
                 # Write publication row
