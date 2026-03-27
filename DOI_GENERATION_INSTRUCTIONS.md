@@ -75,11 +75,8 @@ Update this list after each successful Crossref submission.
 ## WordPress Configuration
 
 ### API Credentials (.env file)
-```
-WP_BASE_URL=https://psychopharmacologyinstitute.com
-WP_USERNAME=mguaia@psychcampus.com
-WP_APP_PASSWORD=tB9H npss T13t Ih8k sXZH QsFo
-```
+Credentials are stored in the local `.env` file (not in repository for security).
+Contact administrator for access.
 
 ### WordPress Fields Used
 - `acf.pi_publication_code` - Publication code (e.g., "EC088", "57")
