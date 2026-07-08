@@ -95,12 +95,29 @@ If Crossref's API can't be reached, the live check silently falls back to `EXCLU
 | 004 | `Psychopharmacology Institute-004-051126.xml` | 2026-05-11 | 1746429999 | — | — | — | **Content not on file** — same as above. |
 | 005 | `Psychopharmacology Institute-005-052926.xml` | 2026-05-29 | 1749852925 | 5 | 5 | 10 | `EC100` (+2 sections), `BG028`, `QT87` (+5 sections) |
 | 006 | `Psychopharmacology Institute-006-052926.xml` | 2026-05-29 | 1749856057 | 2 | 10 | 12 | `VL102` (resubmitted with corrected metadata), `VL104` (+10 sections) |
-| 007 | `Psychopharmacology Institute-007-070826.xml` | **PENDING — generated 2026-07-08, not yet uploaded to Crossref** | — | 5 | 18 | 23 | `EC101` (+2 sections), `BG023`, `BGCONGRESS2026`, `VL107` (+11 sections), `QT88` (+5 sections) |
+| 007 | `Psychopharmacology Institute-007-070826.xml` | 2026-07-08 | 1755140916 | 5 | 18 | 23 | `EC101` (+2 sections), `BG023`, `BGCONGRESS2026`, `VL107` (+11 sections), `QT88` (+5 sections) — 23/23 succeeded, 0 failures |
 
-**As of 2026-07-08, the total registered at Crossref (confirmed via live API query) is 1,928 DOIs**, spanning batches 001–006. Batch 007 above is generated and reviewed but **still needs to be manually uploaded to the Crossref admin portal** — do that, then update this row's "Submitted"/"Crossref ID" columns.
+**As of 2026-07-08, the total registered at Crossref (confirmed via live API query) is 1,951 DOIs** (1,928 through Batch 006, +23 from Batch 007). All 23 Batch 007 DOIs have also been written back into WordPress (see "Writing DOIs back into WordPress" below) and confirmed live.
 
 ### Excluded / not DOI-eligible (confirmed, do not include in future batches)
 - `VLX01`, `VLX02` — old video lectures, not real products (Pamela, 2026-07-08)
+
+---
+
+## Writing DOIs back into WordPress (final step, after Crossref confirms)
+
+Crossref registering a DOI does NOT put it on the website automatically. There's a WordPress ACF field, `pi_doi`, on both publications (`sfwd-courses`) and sections (`sfwd-lessons`), which is what actually displays the DOI on the page. This has to be written back manually via the WordPress REST API after each Crossref submission succeeds:
+
+```
+POST /wp-json/wp/v2/sfwd-courses/{id}   body: {"acf": {"pi_doi": "10.64239/PI-{CODE}"}}   (publications)
+POST /wp-json/wp/v2/sfwd-lessons/{id}   body: {"acf": {"pi_doi": "10.64239/PI-{CODE}"}}   (sections)
+```
+
+The `doi_report.csv` generated alongside each batch's XML has the WordPress ID for every publication and section in that batch (`WordPress ID` column) — use it directly, don't look codes up again.
+
+**Audit performed 2026-07-08:** checked every one of the 318 then-registered publications and their ~1,570 sections by walking each course's actual ordered step list (`ldlms/v2/sfwd-courses/{id}/steps`) and comparing the expected DOI (parent code + position) against what's live in `pi_doi`. Result: only ONE gap found — publication `EC088` (Batch 1, 2026-03-11) had never gotten its `pi_doi` written back. Fixed same day. Every section already matched correctly — the write-back process has otherwise been done reliably for every prior batch.
+
+**Do NOT derive a section's code from its raw `pi_section_code` ACF field alone** — for older content that field is sometimes just a bare 1-2 digit position number (e.g. `"08"`) with no indication of its parent lecture, and guessing "bare number → add VL prefix" can collide with an unrelated publication's real code (this happened during the 2026-07-08 audit: a section with code `"08"` was nearly mismatched against the real, unrelated publication `VL08`). Always resolve a section's true code via its parent course's ordered step list, exactly as the generator itself does it.
 
 ---
 
