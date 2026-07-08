@@ -2,18 +2,34 @@
 
 ## Overview
 
-This document contains all instructions for generating Crossref DOI XML files for the Psychopharmacology Institute. Use this prompt when you need to generate new DOIs or update existing batches.
+This document contains all instructions for generating Crossref DOI XML files for the Psychopharmacology Institute. **Read this file fully before running a new batch** — it is the single source of truth for what's already been submitted and what to do next.
+
+This is the **active** repository. A second repo, `psychopharmacology-doi`, is an earlier version of this same tool and has been superseded — do not use it.
 
 ---
 
 ## Quick Start Command
 
-To generate DOIs for all new publications (excluding already submitted):
-
 ```bash
-cd "C:\Users\yello\Projects\psychopharmacology-doi"
+cd ~/path/to/PI-doi   # wherever you've cloned this repo locally
 python -m src.cli --output output/production/ --no-validate
 ```
+
+The tool automatically excludes anything already registered at Crossref (see "Safety net" below), so you can always just run this and it will only produce DOIs for genuinely new content.
+
+---
+
+## File Naming Convention
+
+Every batch submitted to Crossref follows this pattern (matches what shows in the Crossref admin portal's submission history):
+
+```
+Psychopharmacology Institute-{batch number, 3 digits}-{MMDDYY}.xml
+```
+
+Example: `Psychopharmacology Institute-007-070826.xml` = batch 007, generated July 8, 2026.
+
+Save the generated file locally under `DOI/Files to export to Crossref/` (in the Projects folder) using this name **before** uploading it to Crossref, and keep the `doi_report.csv` alongside it (same name + `-doi_report.csv` suffix) as a readable record of what's in the batch.
 
 ---
 
@@ -21,7 +37,7 @@ python -m src.cli --output output/production/ --no-validate
 
 | Type | Code Pattern | DOI Format | Example |
 |------|--------------|------------|---------|
-| **Video Lectures** | Numeric only (no letters) | `PI-VL{code}` | `57` → `10.64239/PI-VL57` |
+| **Video Lectures** | Numeric (`57`) **or** `VL`-prefixed (`VL57`) — WordPress started storing the `VL` prefix directly in the code field around May 2026; both formats must be recognized | `PI-VL{code}` | `57` or `VL57` → `10.64239/PI-VL57` |
 | **Expert Consultations** | Starts with `EC` | `PI-{code}` | `EC088` → `10.64239/PI-EC088` |
 | **Quick Takes** | Starts with `QT` | `PI-{code}` | `QT52` → `10.64239/PI-QT52` |
 | **Brain Guides** | Starts with `BG` or `SBG` | `PI-{code}` | `BG014` → `10.64239/PI-BG014` |
@@ -29,11 +45,9 @@ python -m src.cli --output output/production/ --no-validate
 
 ### Section DOIs (for publications with sections)
 
-Sections append the section number directly to the parent code:
-- Parent: `10.64239/PI-VL57`
-- Section 1: `10.64239/PI-VL5701`
-- Section 2: `10.64239/PI-VL5702`
-- etc.
+Sections append the section number directly to the parent code: `10.64239/PI-VL5701`, `10.64239/PI-VL5702`, etc.
+
+**Any publication type can have sections, including Expert Consultations** (confirmed 2026-07-08 with `EC101`, which has 2 sections) — do not assume ECs or Brain Guides never have sections. The code fetches sections for every publication type automatically; there's nothing type-specific to configure.
 
 ---
 
@@ -45,6 +59,7 @@ Sections append the section number directly to the parent code:
 | **Open Access** | `OA...` | Different content type |
 | **Open Podcast** | `OPC...` | Podcast episodes |
 | **Activities/Essays** | `SA...` | Activities, not publications |
+| **VLX codes** | `VLX01`, `VLX02`, etc. | Old video lectures that are **not** DOI-eligible products (confirmed by Pamela 2026-07-08) — distinct from normal `VL##` codes |
 
 ---
 
@@ -52,200 +67,101 @@ Sections append the section number directly to the parent code:
 
 1. **All DOIs must be UPPERCASE**: `10.64239/PI-VL57` (not `pi-vl57`)
 2. **Prefix**: Always `10.64239/PI-`
-3. **Video Lectures**: Add `VL` prefix to numeric codes
+3. **Video Lectures**: `VL` prefix is added automatically if the WordPress code is bare numeric; left as-is if WordPress already includes it
 4. **Remove hyphens**: `OPC-031` becomes `OPC031`
 5. **Section numbers**: Append directly as 2 digits (`01`, `02`, etc.)
 
 ---
 
-## Already Submitted DOIs (EXCLUDE FROM NEW BATCHES)
+## Safety net: live Crossref check (added 2026-07-08)
 
-Update this list after each successful Crossref submission.
+`src/fetchers/publications.py` keeps a hardcoded `EXCLUDED_CODES` set as a historical record, but **that list is not the only thing preventing duplicates.** Every run of `fetch_all()` also queries Crossref's public API directly (`src/fetchers/crossref_registry.py`) for every DOI already registered under prefix `10.64239`, and excludes those too — live, every time, no maintenance required.
 
-### Batch 1 - Submitted 2026-03-11
-| Publication Code | DOI | Type | Sections |
-|------------------|-----|------|----------|
-| `EC088` | `10.64239/PI-EC088` | Expert Consultation | 0 |
-| `102` | `10.64239/PI-VL102` | Video Lecture | 10 (VL10201-VL10210) |
+**Why this exists:** on 2026-07-08 we discovered `EXCLUDED_CODES` was badly out of date. Two manual batches (003, 004 — see history below) had been submitted to Crossref between March and May 2026 but were never added to this file, and the tool would have silently tried to re-generate DOIs for content that already had them. The live check makes that class of bug impossible going forward — if this list is ever forgotten again, Crossref's own record still catches it.
 
-**Total DOIs in Batch 1:** 12 (2 publications + 10 sections)
+If Crossref's API can't be reached, the live check silently falls back to `EXCLUDED_CODES` alone (a warning is logged) — so it's still worth keeping that list reasonably current.
 
-### Batch 2 - Submitted 2026-03-27
-| Type | Code Range | Count | Sections |
-|------|------------|-------|----------|
-| Video Lectures | `VL000` - `VL101` (excluding VL102) | 101 | 994 |
-| Expert Consultations | `EC001` - `EC086` (excluding EC088) | 81 | 0 |
-| Quick Takes | `QT01` - `QT85` | 85 | 425 |
-| Brain Guides | `BG001` - `BG021` | 21 | 105 |
-| Special Brain Guides | `SBG2024`, `SBG2025` | 2 | 0 |
-| CAPSmart Takes | `CAPST01` - `CAPST20` | 20 | 26 |
+---
 
-**Total DOIs in Batch 2:** 1,860 (310 publications + 1,550 sections)
+## Already Submitted DOIs — Batch History
 
-#### Last Submitted Codes (Start from here for next batch)
-| Type | Last Code | Notes |
-|------|-----------|-------|
-| Video Lectures | `VL101` | VL102 was in Batch 1 |
-| Expert Consultations | `EC086` | EC088 was in Batch 1; EC082, EC087 not found |
-| Quick Takes | `QT85` | |
-| Brain Guides | `BG021` | |
-| Special Brain Guides | `SBG2025` | |
-| CAPSmart Takes | `CAPST20` | |
+**This table is the process record. After every successful Crossref submission, add a row here with the batch's actual contents** (grab the code list from the `doi_report.csv` generated alongside the XML). Don't rely on memory or the live check alone — future sessions need this written down.
 
-#### Missing/Gap Codes (not in WordPress)
-- **EC**: EC004, EC009, EC011, EC067, EC082, EC087
-- **VL**: VL11, VL19, VL28, VL33, VL55, VL64, VL88, VL99
+| Batch | Filename | Submitted | Crossref ID | Publications | Sections | Total DOIs | Codes / Notes |
+|-------|----------|-----------|--------------|---------------|----------|------------|----------------|
+| 001 | `Psychopharmacology Institute-001-031126.xml` | 2026-03-11 | 1736825252 | 2 | 10 | 12 | `EC088`, `102`/`VL102` (+ 10 sections VL10201–10) |
+| 002 | `Psychopharmacology Institute-002-032726.xml` | 2026-03-27 | 1739137244 | 310 | 1,550 | 1,860 | VL000–VL101 (excl. VL102), EC001–EC086 (excl. EC088), QT01–QT85, BG001–BG021, SBG2024/2025, CAPST01–20 |
+| 003 | `Psychopharmacology Institute-003-042426.xml` | 2026-04-24 | 1743108910 | — | — | — | **Content not on file** — submitted directly, no local record kept. Covered by the live Crossref check regardless. |
+| 004 | `Psychopharmacology Institute-004-051126.xml` | 2026-05-11 | 1746429999 | — | — | — | **Content not on file** — same as above. |
+| 005 | `Psychopharmacology Institute-005-052926.xml` | 2026-05-29 | 1749852925 | 5 | 5 | 10 | `EC100` (+2 sections), `BG028`, `QT87` (+5 sections) |
+| 006 | `Psychopharmacology Institute-006-052926.xml` | 2026-05-29 | 1749856057 | 2 | 10 | 12 | `VL102` (resubmitted with corrected metadata), `VL104` (+10 sections) |
+| 007 | `Psychopharmacology Institute-007-070826.xml` | **PENDING — generated 2026-07-08, not yet uploaded to Crossref** | — | 5 | 18 | 23 | `EC101` (+2 sections), `BG023`, `BGCONGRESS2026`, `VL107` (+11 sections), `QT88` (+5 sections) |
+
+**As of 2026-07-08, the total registered at Crossref (confirmed via live API query) is 1,928 DOIs**, spanning batches 001–006. Batch 007 above is generated and reviewed but **still needs to be manually uploaded to the Crossref admin portal** — do that, then update this row's "Submitted"/"Crossref ID" columns.
+
+### Excluded / not DOI-eligible (confirmed, do not include in future batches)
+- `VLX01`, `VLX02` — old video lectures, not real products (Pamela, 2026-07-08)
 
 ---
 
 ## WordPress Configuration
 
 ### API Credentials (.env file)
-Credentials are stored in the local `.env` file (not in repository for security).
-Contact administrator for access.
+Not committed to the repo. See `Accesses/PI_IP_Access_Reference.md` in the Projects folder for the current WordPress Application Password.
 
 ### WordPress Fields Used
-- `acf.pi_publication_code` - Publication code (e.g., "EC088", "57")
-- `acf.pi_section_code` - Section code (if available)
-- `acf.pi_key_points` - Used for abstract
-- `acf.pi_learning_objectives` - Used for abstract (fallback)
-- `coauthors` - Faculty/authors (via Co-Authors Plus plugin)
+- `acf.pi_publication_code` — Publication code (e.g., `EC088`, `VL57`)
+- `acf.pi_section_code` — Section code (if available)
+- `acf.pi_key_points` — Used for abstract
+- `acf.pi_learning_objectives` — Used for abstract (fallback)
+- `coauthors` — Faculty/authors (via Co-Authors Plus plugin)
 
 ---
 
 ## Crossref Configuration
 
-### Depositor Information
-- **Name**: Psychopharmacology Institute
-- **Email**: services@psychcampus.com
-- **Registrant**: Psychopharmacology Institute
-
-### Publisher Information
-- **Name**: Psychopharmacology Institute
-- **Place**: United States
-
-### Schema
-- **Version**: 5.4.0
-- **Content Type**: Report (`report-paper`)
+- **Depositor**: Psychopharmacology Institute / services@psychcampus.com
+- **Publisher**: Psychopharmacology Institute, United States
+- **Schema**: Crossref 5.4.0, Content Type: Report (`report-paper`)
 
 ---
 
-## File Locations
+## Step-by-Step Process for a New DOI Batch
 
-| File | Purpose |
-|------|---------|
-| `config/crossref_config.yml` | Crossref and publisher settings |
-| `src/fetchers/publications.py` | Contains EXCLUDED_CODES list |
-| `output/production/` | Production XML files |
-| `output/production/doi_report.csv` | CSV report of generated DOIs |
-
----
-
-## Step-by-Step Process for New DOI Batch
-
-### 1. Verify Exclusions
-Check that `src/fetchers/publications.py` has the correct `EXCLUDED_CODES`.
-
-**Note:** All publications through 2026-03-27 have been submitted. The EXCLUDED_CODES set
-contains all 312 submitted publication codes. For new publications, simply run the CLI -
-it will automatically exclude already-submitted codes and only process new ones.
-
-### 2. Test with One Publication
-```bash
-python -m src.cli --limit 1 --output output/test/ --no-validate
-```
-Review the generated XML to verify format.
-
-### 3. Generate Full Batch
-```bash
-python -m src.cli --output output/production/ --no-validate
-```
-
-### 4. Review Output
-- Check `output/production/crossref_batch_*.xml`
-- Review `output/production/doi_report.csv`
-
-### 5. Submit to Crossref
-Upload XML file to Crossref admin portal.
-
-### 6. Update This Document
-After successful submission, add the new codes to the "Already Submitted DOIs" section above.
+1. **Run the CLI** (see Quick Start above). It fetches WordPress, filters to valid/not-yet-registered codes (both via `EXCLUDED_CODES` and the live Crossref check), and writes `output/production/crossref_batch_<timestamp>.xml` + `doi_report.csv`.
+2. **Review `doi_report.csv`** — sanity-check the codes and titles found. Watch for anything with an unfamiliar code pattern (like the `VLX` case) and flag it before including it.
+3. **Rename** the XML to `Psychopharmacology Institute-{next batch #}-{MMDDYY}.xml` and save both it and the CSV into `DOI/Files to export to Crossref/` in the Projects folder.
+4. **Submit to Crossref**: upload the XML via the Crossref admin portal.
+5. **Update this document**: add a row to the Batch History table above with the real submission date/ID and the codes covered. This is required — it's what lets the next session pick up exactly where this one left off, instead of reconstructing it from Crossref or WordPress from scratch.
+6. **Push to GitHub**: commit any code changes plus this file, push to `pgonzalez-sys/PI-doi`.
 
 ---
 
 ## Troubleshooting
 
 ### Authentication Error (401)
-- Check `.env` file has correct credentials
-- Verify WordPress Application Password is active
+Check `.env` has the current WordPress Application Password (see `Accesses/PI_IP_Access_Reference.md`).
 
-### No Publications Found
-- Ensure `status=publish` filter is working
-- Check WordPress has published courses
+### Live Crossref check returns nothing / warning logged
+Crossref's API may be briefly unreachable — the tool falls back to `EXCLUDED_CODES` only. Re-run once connectivity is confirmed before trusting the output as complete.
 
-### Missing Sections
-- Not all publications have sections
-- Video Lectures, Quick Takes typically have sections
-- Expert Consultations, Brain Guides typically don't
+### Unfamiliar code prefix / format
+Don't guess — ask before including it in a batch. This is exactly what happened with `VLX01`/`VLX02` and the `VL`-prefix format change; both needed a human call, not an assumption.
 
 ---
 
 ## Code Reference
 
-### Key Files
-- `src/cli.py` - Main CLI entry point
-- `src/fetchers/publications.py` - WordPress data fetching + filtering
-- `src/transformers/doi_generator.py` - DOI pattern generation
-- `src/transformers/wp_to_crossref.py` - Data transformation
-- `src/generators/xml_builder.py` - XML generation
-
-### DOI Generation Logic (doi_generator.py)
-```python
-# Numeric codes get VL prefix (Video Lectures)
-if code.isdigit():
-    code = f"VL{code}"
-
-# All codes uppercase, hyphens removed
-code = code.upper().replace('-', '')
-
-# Publication DOI: 10.64239/PI-{code}
-# Section DOI: 10.64239/PI-{code}{section_number}
-```
-
----
-
-## Statistics (as of 2026-03-27)
-
-| Metric | Count |
-|--------|-------|
-| Total publications in WordPress | 506 |
-| Valid for DOI | 312 |
-| Already submitted (Batch 1 + 2) | 312 |
-| Remaining to process | 0 |
-| Excluded (NL, OA, OPC, SA) | 194 |
-
-### DOIs Registered
-| Batch | Publications | Sections | Total DOIs |
-|-------|--------------|----------|------------|
-| Batch 1 (2026-03-11) | 2 | 10 | 12 |
-| Batch 2 (2026-03-27) | 310 | 1,550 | 1,860 |
-| **Total** | **312** | **1,560** | **1,872** |
-
-### Breakdown by Type (All Submitted)
-| Type | Count |
-|------|-------|
-| Video Lectures | 102 |
-| Expert Consultations | 82 |
-| Quick Takes | 85 |
-| Brain Guides (BG) | 21 |
-| Special Brain Guides (SBG) | 2 |
-| CAPSmart Takes | 20 |
+- `src/cli.py` — CLI entry point
+- `src/fetchers/publications.py` — WordPress fetch + code validation + exclusion filtering
+- `src/fetchers/crossref_registry.py` — live Crossref registry check (safety net, added 2026-07-08)
+- `src/transformers/doi_generator.py` — DOI pattern generation
+- `src/transformers/wp_to_crossref.py` — data transformation
+- `src/generators/xml_builder.py` — XML generation
 
 ---
 
 ## Contact
 
-For issues with this system, check:
-- Generated logs for error details
 - Crossref documentation: https://www.crossref.org/documentation/
 - Repository: https://github.com/pgonzalez-sys/PI-doi

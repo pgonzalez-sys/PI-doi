@@ -3,6 +3,7 @@
 from typing import List, Optional
 import logging
 from .base import WordPressClient
+from .crossref_registry import fetch_registered_codes
 from ..models.publication import Publication
 from ..models.section import Section
 from ..models.author import Author
@@ -14,9 +15,13 @@ logger = logging.getLogger(__name__)
 class PublicationFetcher:
     """Fetches publications with author details from WordPress."""
 
-    # Publication codes that have already been submitted to Crossref
-    # These will be excluded from new batches
-    # Last updated: 2026-03-27 (Batch 1 + Batch 2 = 312 publications)
+    # Publication codes that have already been submitted to Crossref.
+    # This list is a HISTORICAL RECORD, not the sole source of truth: fetch_all()
+    # also checks Crossref's live registry (see crossref_registry.py) as a safety
+    # net, because this list is easy to forget to update after a manual submission
+    # (batches -003 (2026-04-24) and -004 (2026-05-11) were submitted to Crossref
+    # but their specific codes were never added here -- the live check covers them).
+    # Last manually updated: 2026-07-08 (through Batch -006, 2026-05-29)
     EXCLUDED_CODES = {
         # Video Lectures (numeric codes) - Batch 1 & 2
         '000', '001', '01', '02', '002', '003', '03', '004', '04', '005',
@@ -62,11 +67,14 @@ class PublicationFetcher:
         'CAPST01', 'CAPST02', 'CAPST03', 'CAPST04', 'CAPST05', 'CAPST06', 'CAPST07',
         'CAPST08', 'CAPST09', 'CAPST10', 'CAPST11', 'CAPST12', 'CAPST13', 'CAPST14',
         'CAPST15', 'CAPST16', 'CAPST17', 'CAPST18', 'CAPST19', 'CAPST20',
+        # Batch 3 (2026-05-29) - confirmed submitted to Crossref by Pamela on 2026-07-08
+        'VL104', 'EC100', 'BG028', 'QT87',
     }
 
     # Valid code prefixes for DOI generation
     # Only publications with these codes will get DOIs
     VALID_PREFIXES = (
+        'VL',     # Video Lectures (WordPress started storing these with an explicit VL prefix ~2026-05; older records may still be bare numeric)
         'EC',     # Expert Consultations
         'QT',     # Quick Takes
         'BG',     # Brain Guides
@@ -77,11 +85,21 @@ class PublicationFetcher:
     def __init__(self, client: WordPressClient):
         self.client = client
 
+    @staticmethod
+    def _normalize_for_exclusion(code: str) -> str:
+        """Normalize a code the same way DOIGenerator does, so exclusion checks
+        work regardless of whether WordPress stores the bare number ("102") or
+        the VL-prefixed form ("VL102") for a Video Lecture."""
+        code = code.strip().upper().replace('-', '')
+        if code.isdigit():
+            code = f'VL{code}'
+        return code
+
     def _is_valid_for_doi(self, code: str) -> bool:
         """Check if a publication code should get a DOI.
 
         Valid codes:
-        - Numeric only (Video Lectures): 102, 57, 000, 08, etc.
+        - Numeric only or VL-prefixed (Video Lectures): 102, VL102, 057, etc.
         - EC (Expert Consultations): EC088, EC054, etc.
         - QT (Quick Takes): QT52, etc.
         - BG/SBG (Brain Guides): BG800, SBG2025, etc.
@@ -91,6 +109,8 @@ class PublicationFetcher:
         - NL (Newsletter)
         - OPC (Open Podcast)
         - OA (Open Access)
+        - VLX## (e.g. VLX01, VLX02) - old video lectures that are NOT DOI-eligible
+          products, confirmed by Pamela 2026-07-08
         - Any other prefixes
         """
         if not code:
@@ -98,19 +118,31 @@ class PublicationFetcher:
 
         code = code.strip().upper()
 
+        # VLX codes are not real DOI-eligible products, unlike VL codes
+        if code.startswith('VLX'):
+            return False
+
         # Numeric-only codes are Video Lectures
         if code.isdigit():
             return True
 
-        # Check for valid prefixes
+        # Check for valid prefixes (includes VL, so both "VL102" and legacy "102" work)
         return code.startswith(self.VALID_PREFIXES)
 
-    def fetch_all(self, limit: Optional[int] = None, exclude_submitted: bool = True) -> List[Publication]:
+    def fetch_all(
+        self,
+        limit: Optional[int] = None,
+        exclude_submitted: bool = True,
+        crossref_prefix: Optional[str] = '10.64239',
+    ) -> List[Publication]:
         """Fetch all publications with author details.
 
         Args:
             limit: Optional limit on number of publications to fetch
             exclude_submitted: If True, exclude already submitted DOIs (default: True)
+            crossref_prefix: DOI prefix to check against Crossref's live registry as
+                a safety net on top of EXCLUDED_CODES (pass None to skip the live
+                check and rely on EXCLUDED_CODES alone, e.g. if offline)
         """
         logger.info("Fetching published publications...")
 
@@ -134,11 +166,18 @@ class PublicationFetcher:
             logger.info(f"Filtered out {filtered_count} publications (NL, OPC, OA, etc. - no DOI needed)")
 
         # Filter out already submitted publications
+        # Compares normalized codes so "102" (legacy WP format) and "VL102"
+        # (current WP format) both match the same EXCLUDED_CODES entry.
         if exclude_submitted:
+            excluded_normalized = {self._normalize_for_exclusion(c) for c in self.EXCLUDED_CODES}
+            if crossref_prefix:
+                live_registered = fetch_registered_codes(crossref_prefix)
+                if live_registered:
+                    excluded_normalized |= live_registered
             before_exclusion = len(raw_pubs)
             raw_pubs = [
                 p for p in raw_pubs
-                if p.get('acf', {}).get('pi_publication_code', '') not in self.EXCLUDED_CODES
+                if self._normalize_for_exclusion(p.get('acf', {}).get('pi_publication_code', '')) not in excluded_normalized
             ]
             excluded_count = before_exclusion - len(raw_pubs)
             if excluded_count > 0:
