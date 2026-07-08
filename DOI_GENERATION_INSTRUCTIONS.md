@@ -10,12 +10,23 @@ This is the **active** repository. A second repo, `psychopharmacology-doi`, is a
 
 ## Quick Start Command
 
+**Recommended: the full pipeline (added 2026-07-08)** — generates the batch, shows a review summary, submits to Crossref, and writes confirmed DOIs back to WordPress, all in one run:
+
+```bash
+cd ~/path/to/PI-doi
+python -m src.cli_full_pipeline
+```
+
+It always pauses and asks "Submit this batch to Crossref? [y/N]" before actually submitting — nothing goes to Crossref without that explicit confirmation, even in this automated version. Pass `--yes` to skip the prompt once you trust it. Pass `--test` to submit to Crossref's TEST system instead of production (for checking credentials/format without registering real DOIs). See "Automated Crossref submission" below for full details, including what happens when Crossref's diagnostic isn't available immediately.
+
+**Manual/legacy: generate only, no submission**
+
 ```bash
 cd ~/path/to/PI-doi   # wherever you've cloned this repo locally
 python -m src.cli --output output/production/ --no-validate
 ```
 
-The tool automatically excludes anything already registered at Crossref (see "Safety net" below), so you can always just run this and it will only produce DOIs for genuinely new content.
+Either way, the tool automatically excludes anything already registered at Crossref (see "Safety net" below), so you can always just run it and it will only produce DOIs for genuinely new content.
 
 ---
 
@@ -118,6 +129,35 @@ The `doi_report.csv` generated alongside each batch's XML has the WordPress ID f
 **Audit performed 2026-07-08:** checked every one of the 318 then-registered publications and their ~1,570 sections by walking each course's actual ordered step list (`ldlms/v2/sfwd-courses/{id}/steps`) and comparing the expected DOI (parent code + position) against what's live in `pi_doi`. Result: only ONE gap found — publication `EC088` (Batch 1, 2026-03-11) had never gotten its `pi_doi` written back. Fixed same day. Every section already matched correctly — the write-back process has otherwise been done reliably for every prior batch.
 
 **Do NOT derive a section's code from its raw `pi_section_code` ACF field alone** — for older content that field is sometimes just a bare 1-2 digit position number (e.g. `"08"`) with no indication of its parent lecture, and guessing "bare number → add VL prefix" can collide with an unrelated publication's real code (this happened during the 2026-07-08 audit: a section with code `"08"` was nearly mismatched against the real, unrelated publication `VL08`). Always resolve a section's true code via its parent course's ordered step list, exactly as the generator itself does it.
+
+---
+
+## Automated Crossref submission (added 2026-07-08)
+
+`src/cli_full_pipeline.py` automates the entire process end-to-end: generate → show a review summary → **pause for explicit confirmation** → submit to Crossref via the official HTTPS POST deposit API → write confirmed DOIs back to WordPress. See "Quick Start Command" above for usage.
+
+**Design principle:** generation and WordPress write-back are fully automatic, but the moment of actually submitting to Crossref always requires a human "yes" (or the explicit `--yes` flag) — DOI registration is meant to be permanent, so it intentionally isn't something that runs unattended by default, unlike the fully-automated `notion-getresponse` email pipeline (a bad email is fixable; a bad DOI registration isn't). Revisit going fully unattended once this pipeline has a longer track record of clean runs.
+
+### Credentials
+
+Add to `.env` (gitignored):
+```
+CROSSREF_LOGIN_ID=<your Crossref depositor login>
+CROSSREF_LOGIN_PASSWORD=<your Crossref depositor password>
+```
+Current credentials are in `Accesses/PI_IP_Access_Reference.md` in the Projects folder (not in this repo, for obvious reasons).
+
+### The async diagnostic problem
+
+Crossref's deposit endpoint only returns an immediate receipt acknowledging the file was received — it does NOT tell you right away whether each DOI actually succeeded. The full diagnostic (the `<doi_batch_diagnostic>` report, with per-DOI Success/Failure) is generated asynchronously and arrives later, either by email or by checking the admin portal's submission log at `https://doi.crossref.org/servlet/submissionAdmin`.
+
+Because of this, `cli_full_pipeline.py` has two modes:
+1. **Full run** (`python -m src.cli_full_pipeline`): generates, submits, then either uses `--diagnostic-file` if you already have one, or (more commonly) prints instructions and stops, reserving the batch number for you.
+2. **Resume after the diagnostic arrives** (`python -m src.cli_full_pipeline --skip-submit --batch-number N --doi-report path/to/doi_report.csv --diagnostic-file path/to/diagnostic.xml`): parses the diagnostic and writes only the confirmed-successful DOIs back to WordPress. This is exactly what Pamela did manually for Batch 007 (pasting the diagnostic in chat) before this pipeline existed — now it's one command.
+
+### Testing before trusting it with a real batch
+
+Pass `--test` to submit to Crossref's TEST sandbox (`test.crossref.org`) instead of production — it doesn't register real DOIs. **Note:** as of 2026-07-08, the production login credentials returned `401 Unauthorized` against the TEST system specifically, which strongly suggests the TEST sandbox needs its own separate registered test account rather than reusing the production login. Verification of the production credentials was deliberately deferred to the next real batch run rather than testing against production with no new content to submit — resubmitting an already-registered batch is very likely a safe no-op (Crossref treats it as a metadata update, not a new registration) but wasn't done without confirming with Pamela first.
 
 ---
 

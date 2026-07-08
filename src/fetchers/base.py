@@ -115,3 +115,19 @@ class WordPressClient:
         response = self.session.get(url, timeout=timeout)
         response.raise_for_status()
         return response.json()
+
+    def post(self, endpoint: str, json_body: dict, timeout: int = 30) -> dict:
+        """Update a resource (e.g. writing an ACF field like pi_doi back to a post).
+
+        Args:
+            endpoint: API endpoint path, including the post ID (e.g. "wp/v2/sfwd-courses/123")
+            json_body: request body, e.g. {"acf": {"pi_doi": "10.64239/PI-EC101"}}
+            timeout: Request timeout in seconds
+
+        Returns:
+            JSON response as dictionary
+        """
+        url = f"{self.base_url}/wp-json/{endpoint}"
+        response = self.session.post(url, json=json_body, timeout=timeout)
+        response.raise_for_status()
+        return response.json()
